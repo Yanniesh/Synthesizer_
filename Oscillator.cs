@@ -12,7 +12,7 @@ namespace Synthesizer
     {
         public SignalGenerator _oscillator = null;
         public WaveOutEvent outputEvent;
-        bool isPlaying = false;
+        public bool isPlaying = false;
         public Oscillator() {
             _oscillator = new SignalGenerator(44100, 2);
         }
