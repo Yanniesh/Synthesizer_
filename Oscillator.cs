@@ -1,67 +1,168 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using NAudio.Dsp;
 using NAudio.Wave;
-using NAudio.Wave.SampleProviders;
+using System;
 
 namespace Synthesizer
 {
-    public class Oscillator
+    public class Oscillator : ISampleProvider
     {
-        public SignalGenerator _oscillator = null;
-        public WaveOutEvent outputEvent;
-        public bool isPlaying = false;
-        public Oscillator() {
-            _oscillator = new SignalGenerator(44100, 2);
-        }
-        public void SetFrequency(double keyFreq)
+        int _sampleRate;
+        private readonly SampleGenerator sourceOSC;
+        private readonly EnvelopeGenerator ADSREnv;
+        public WaveFormat WaveFormat { get; }
+        bool enableSubOsc;
+        float _attack;
+        float _decay;
+        float sustain;
+        float release;
+        double NoteFreq;
+        double _LFOFreq;
+        double _LFOGain;
+        double _subBassGain;
+        float _panning;
+        public bool EnableSubOsc
         {
-            _oscillator.Frequency = keyFreq;
-
-        }
-        public void SetVolume(double volume)
-        {
-            _oscillator.Gain = volume;
-        }
-        public void SetWaveType(String type)
-        {
-            switch (type)
+            get
             {
-                case "Sine": _oscillator.Type = SignalGeneratorType.Sin; break;
-                case "SawTooth": _oscillator.Type = SignalGeneratorType.SawTooth; break;
-                case "Square": _oscillator.Type = SignalGeneratorType.Square; break;
-                case "Triangle": _oscillator.Type = SignalGeneratorType.Triangle; break;
-                /*case "Sweep": _oscillator.Type = SignalGeneratorType.Sweep; _oscillator.SweepLengthSecs = 2; _oscillator.FrequencyEnd = 2000;  break;*/
+                return enableSubOsc;
+            }
+            set
+            {
+                enableSubOsc = value;
+                if (sourceOSC != null)
+                {
+                    sourceOSC.EnableSubOsc = value;
+                }
+            }
+        } 
+        public float AttackSeconds
+        {
+            get => _attack;
+            set
+            {
+                _attack = value;
+                ADSREnv.AttackRate = _attack * WaveFormat.SampleRate;
+            }
+        }    
+        public float DecaySeconds
+        {
+            get => _decay;
+            set
+            {
+                _decay = value;
+                ADSREnv.DecayRate = _decay * WaveFormat.SampleRate;
+            }
+        }    
+        public float SustainLevel
+        {
+            get => sustain;
+            set
+            {
+                sustain = value;
+                ADSREnv.SustainLevel = sustain;
             }
         }
-
-        public ISampleProvider runOscillator()
+        public float ReleaseSeconds
         {
-            return _oscillator;
-        }
-        public void PlaySound()
-        {
-            outputEvent = new WaveOutEvent();
-            outputEvent.Init(runOscillator());
-            outputEvent.Play();
+            get => release;
 
-        }
-
-        public void Run()
-        {
-            if (!isPlaying)
+            set
             {
-                isPlaying = true;
-                PlaySound();
+                release = value;
+                ADSREnv.ReleaseRate = release * WaveFormat.SampleRate;
             }
         }
-        public void Stop()
+        public double NoteFrequency
         {
-            outputEvent.Dispose();
-            isPlaying = false;
-            Console.WriteLine(outputEvent.PlaybackState);
+            get => NoteFreq;
+            set
+            {
+                NoteFreq = value;
+                if (sourceOSC != null)
+                {
+                    sourceOSC.Frequency = NoteFreq;
+                }
+            }
+        }
+        public double LFOFrequency
+        {
+            get
+            {
+                return _LFOFreq;
+            }
+            set
+            {
+                _LFOFreq = value;
+                sourceOSC.LFOFreq = value;
+            }
+        }
+        
+        public double LFOGain
+        {
+            get
+            {
+                return _LFOGain;
+            }
+            set
+            {
+                _LFOGain = value;
+                sourceOSC.LFO_Vol = value;
+            }
+        }
+        public double SubBassGain
+        {
+            get
+            {
+                return _subBassGain;
+            }
+            set
+            {
+                _subBassGain = value;
+                sourceOSC.subBassGain = value;
+            }
+        }
+        public float Panning
+        {
+            get
+            {
+                return _panning;
+            }
+            set
+            {
+                _panning = value;
+                sourceOSC.Panning = value;
+            }
+        }
+        public Oscillator(String waveType, float level, double freq, int sampleRate = 44100)
+        {
+            _sampleRate = sampleRate;
+            var channels = 2;
+            WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(_sampleRate, channels);
+            ADSREnv = new EnvelopeGenerator();
+            sourceOSC = new SampleGenerator(_sampleRate, channels)
+            {
+                Frequency = freq,
+                Type = waveType,
+                Gain = level,
+                Panning = 1.0f
+            };
+            ADSREnv.Gate(true);
+        }
+
+        public void Stop() 
+        {
+            ADSREnv.Gate(false);
+        }
+
+        public int Read(float[] buffer, int offset, int count)
+        {
+            if (ADSREnv.State == EnvelopeGenerator.EnvelopeState.Idle) { return 0; }
+            var sampleCount = sourceOSC.Read(buffer, offset, count);
+            for (var i = 0; i < sampleCount; i++)
+            {
+                buffer[offset++] *= ADSREnv.Process();
+            }
+            return sampleCount;
         }
     }
 }
