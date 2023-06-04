@@ -3,16 +3,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Input;
 
 namespace Synthesizer
 {
     public class PianoKeys
     {
         public List<string> KeysLettersArray = new List<string>();
-        public List<double> NotesFrequencies = new List<double>();
-        public List<PianoKey> ListOfKeys=  new List<PianoKey>();
-        const double DefaultPitchForA = 110.0;
-        int NumOfOctaves = 4;
+        public List<float> NotesFrequencies = new List<float>();
+        public List<PianoKey> ListOfKeys =  new List<PianoKey>();
+        const double DefaultPitchForA = 27.50;
+        int NumOfOctaves = 5;
         public PianoKeys()
         {
             addkeysLetters();
@@ -23,7 +24,7 @@ namespace Synthesizer
         {
             for (int i = 0; i < KeysLettersArray.Count(); i++)
             {
-                ListOfKeys.Add(new PianoKey(KeysLettersArray[i], NotesFrequencies[i]));
+                ListOfKeys.Add(new PianoKey(i,KeysLettersArray[i], NotesFrequencies[i]));
             }
         }
         public void addkeysLetters()
@@ -43,12 +44,13 @@ namespace Synthesizer
                 KeysLettersArray.Add("A#" + i);
                 KeysLettersArray.Add("B" + i);
             }
+            KeysLettersArray.Add("C" + (NumOfOctaves +1));
 
         }
         public void addNoteFrequnecies()
         {
             double OctaveFreq = DefaultPitchForA;
-            for (int i = 3; i <= 50; i++)
+            for (int i = 3; i <= NumOfOctaves * 12 + 3; i++)
             {
                 Convert.ToDouble(i);
                 double factor = Math.Pow(2, (i % 12) / 12.0);
@@ -58,7 +60,7 @@ namespace Synthesizer
                 }
                 double NoteFreq = OctaveFreq * factor;
                 NoteFreq = Math.Round(NoteFreq, 2);
-                NotesFrequencies.Add(NoteFreq);                
+                NotesFrequencies.Add((float)NoteFreq);                
             }
         }
     }
